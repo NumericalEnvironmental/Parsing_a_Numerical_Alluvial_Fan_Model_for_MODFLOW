@@ -1,8 +1,10 @@
 # Parsing_a_Numerical_Alluvial_Fan_Model_for_MODFLOW
 
+![Preview](https://numericalenvironmental.files.wordpress.com/2018/02/grid_sections.jpg)
+
 This Python script parses the output of a simulated alluvial fan formation model into layers to support construction of a MODFLOW model for groundwater flow through the fan. The fan formation model itself can be found at https://github.com/NumericalEnvironmental/Alluvial_fan_formation_simulator. Layer elevations and posited hydraulic conductivity values (as inferred from modeled sediment textural class distributions) are developed for every cell and written to text-delimited output files. The script is written in Python 2.7, but with the from_future module included to provide compatibility with Python 3. The Pandas library is a required.
 
-Additional discussion, and example output, is provided on my blog: (link pending).
+Additional discussion, and example output, is provided on my blog: https://numericalenvironmental.wordpress.com/2018/02/06/a-python-script-to-support-a-modflow-model-for-a-synthetic-alluvial-fan/.
 
 The following input files are required:
 

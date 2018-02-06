@@ -1,0 +1,4 @@
+num_layers 	8
+min_thickness 	4.
+max_thickness	28.
+default_dz	0.1

@@ -1,0 +1,6 @@
+name	K
+clay	1e-5
+silt	0.01
+fine_sand	10
+coarse_sand	100
+gravel	500

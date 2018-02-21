@@ -6,7 +6,7 @@ This Python script parses the output of a simulated alluvial fan formation model
 
 Additional discussion, and example output, is provided on my blog: https://numericalenvironmental.wordpress.com/2018/02/06/a-python-script-to-support-a-modflow-model-for-a-synthetic-alluvial-fan/.
 
-UPDATE (2-20-2018): I've modified the script to write files to supporting running PHAST reactive transport simulations, in addition to MODFLOW. See my blog entry for additional details: (link pending).
+UPDATE (2-20-2018): I've modified the script to write files to supporting running PHAST reactive transport simulations, in addition to MODFLOW. See my blog entry for additional details: https://numericalenvironmental.wordpress.com/2018/02/21/extension-of-a-synthetic-alluvial-fan-parsing-script-to-support-a-phast-groundwater-chemical-transport-model/.
 
 The following input files are required:
 

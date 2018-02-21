@@ -1,17 +1,18 @@
-############################################################################
+#################################################################################
 #
 # FanGrid.py
 #
-# python script to develop a MODFLOW grid from a simulated alluvial fan
+# python script to develop MODFLOW and PHAST grids from a simulated alluvial fan
 #
 # by Walt McNab
 #
-############################################################################
+#################################################################################
 
 from __future__ import print_function
 from numpy import *
 from pandas import *
 import matplotlib.pyplot as plt
+from scipy.spatial import ConvexHull
 
 options.mode.chained_assignment = None
 
@@ -45,10 +46,11 @@ class Params:
         inputFile = open('model_params.txt','r')
         for line in inputFile: lineInput.append(line.split())
         inputFile.close()
-        self.numLayers = int(lineInput[0][1])                # grid origin
-        self.thickMin = float(lineInput[1][1])
-        self.zMax = float(lineInput[2][1])
-        self.dz = float(lineInput[3][1])
+        self.numLayers = int(lineInput[0][1])               # collapse to this number of layers
+        self.thickMin = float(lineInput[1][1])              # minimum thickness for active cells
+        self.zMax = float(lineInput[2][1])                  # maximum elevation (anything above is truncated)
+        self.dz = float(lineInput[3][1])                    # elevation step size (same as in alluvial fan model)
+        self.numBins = int(lineInput[4][1])                 # number of bins for mineralogical class (for PHAST model)
         print('Read model grid constraints.')
 
 
@@ -69,7 +71,7 @@ class Fan:
         print('Read fan model output.')               
 
     def Layers(self, grid):
-        # return dataframes based on fan_df, but vertically aggregated into grid.numLayers
+        # return data frames based on fan_df, but vertically aggregated into grid.numLayers
         print('Processing ...')
         aggStatus = False
         for i, xCol in enumerate(self.xSet):
@@ -85,35 +87,58 @@ class Fan:
                 dz = zExtent/grid.numLayers 
                 column_df['layer'] = (column_df['z']-z0)/dz
                 column_df['layer'] = column_df['layer'].astype('int64')       
-                column_df = column_df.groupby('layer').mean()
+                column_df = column_df.groupby('layer').mean()   # collapse into grid.numLayers
                 column_df.reset_index(inplace=True)         
                 column_df['row'] = self.numRows-j 		# renumber to match MODFLOW row numbering scheme
                 column_df['col'] = i+1
-                column_df['zBase'] = z0 + column_df['layer']*dz                         
+                column_df['zBase'] = z0 + column_df['layer'] * dz
+                column_df['zMid'] = column_df['zBase'] + 0.5*dz                       
                 column_df['zTop'] = column_df['zBase'] + dz                         
                 column_df['ibound'] = bool(zExtent>=grid.thickMin) 	# fan areas that are too thin are marked as inactive
-                column_df = column_df[['col', 'row', 'layer', 'zBase', 'zTop', 'K', 'ibound']]     
+                column_df = column_df[['x', 'y', 'zMid', 'col', 'row', 'layer', 'zBase', 'zTop', 'K', 'ibound']] 
                 if not aggStatus:
                     layers_df = column_df.copy()
                     aggStatus = True
-                else: layers_df = concat([layers_df, column_df], axis=0)
+                else:
+                    layers_df = concat([layers_df, column_df], axis=0)
         layers_df.reset_index(inplace=True)
-        layers_df['layer'] = grid.numLayers - layers_df['layer']
-        hydro_df = layers_df[['col', 'row', 'layer', 'K', 'ibound']]        # hydrology props in 3-D
-        print('Generated hydrology data set.')        
-        layerStruct_df = layers_df[layers_df['layer']==1]
+        
+        # hydrology data are 3-dimensional
+        layers_df['layer'] = grid.numLayers - layers_df['layer']            # MODFLOW layer numbering is top-down
+        hydro_df = layers_df[['col', 'row', 'layer', 'K', 'ibound']]        # for MODFLOW
+        Kfield_df = layers_df[['x', 'y', 'zMid', 'K']]                      # K-field grid, for interpolation in PHAST
+        print('Generated hydrology data sets.')
+
+        # structural model entails only one (x ,y) slice; set up
+        layerStruct_df = layers_df[layers_df['layer']==1]   
         zb = array(layerStruct_df['zBase'])
         topModel = array(layerStruct_df['zTop'])
-        layerStruct_df = layerStruct_df[['col', 'row']] 
+        topSurface_df = layerStruct_df[['x', 'y']]          # create top surface elevation data frame, just for PHAST
+        topSurface_df['surface'] = topModel
+
+        # create perimeter delineation set for active cells (for PHAST)
+        points_df = layerStruct_df[layerStruct_df['ibound']==True]
+        points = array(points_df[['x', 'y']])
+        hull = ConvexHull(points)                      
+        perimPoints = transpose(points[hull.vertices])                     
+        perimPoints_df = DataFrame(data={'x': perimPoints[0], 'y': perimPoints[1]})             
+         
+        # format and populate layer elevation file for MODFLOW   
+        layerStruct_df = layerStruct_df[['col', 'row']]
         layerStruct_df['top_model'] = topModel
         layerStruct_df['base_1'] = zb
         for i in xrange(2, grid.numLayers+1):
             nextLayer_df = layers_df[layers_df['layer']==i]
             zb = array(nextLayer_df['zBase'])
             layerStruct_df['base_' + str(i)] = zb
-        print('Generated layer structure data set.')
-        return hydro_df, layerStruct_df
+        print('Generated layer structure data sets.')
+        return hydro_df, Kfield_df, layerStruct_df, topSurface_df, perimPoints_df
 
+
+def Bin(A,n):
+    # divide array A into bins by equal-interval method; return bin index numbers
+    bins = linspace(min(A), max(A), n, endpoint=False)
+    return digitize(A, bins)
 
 ### main code ###
 
@@ -129,7 +154,7 @@ def FanGrid():
     fan = Fan(grid, sed)
     
     # collapse vertical sediment stacks into layers
-    hydro_df, layerStruct_df = fan.Layers(grid)
+    hydro_df, Kfield_df, layerStruct_df, topSurface_df, perimPoints_df = fan.Layers(grid)
     active_df = hydro_df[hydro_df['ibound']==1]
     logK = log10(active_df['K'])		# plot log K histogram (over all active cells) 
     plt.figure()
@@ -137,9 +162,20 @@ def FanGrid():
     ax.set_xlabel('Log K')
     plt.show()
 
+    # digitize mineralogy around (log) K
+    logK = array(log10(Kfield_df['K']))
+    minBins = Bin(logK, grid.numBins)
+    minField_df = Kfield_df.copy()
+    minField_df['bins'] = minBins-1         # adjust indexing to start from 0
+    minField_df = minField_df[['x', 'y', 'zMid', 'bins']] 
+
     print('Writing output.')    
     hydro_df.to_csv('hydro.csv', index=False, sep='\t')
+    Kfield_df.to_csv('K_field.csv', index=False, sep='\t')    
     layerStruct_df.to_csv('layers_struct.csv', index=False, sep='\t')
+    topSurface_df.to_csv('top_surface.csv', index=False, sep='\t')
+    minField_df.to_csv('min_field.csv', index=False, sep='\t')
+    perimPoints_df.to_csv('perim_points.csv', index=False, sep='\t')
 
     print('Done.')
 

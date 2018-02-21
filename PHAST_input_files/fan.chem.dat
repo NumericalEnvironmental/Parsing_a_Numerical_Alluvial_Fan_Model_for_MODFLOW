@@ -1,0 +1,141 @@
+TITLE alluvial fan simulation
+
+SOLUTION 0 		# ambient fan groundwater
+    temp      25
+    pH        7
+    pe        4
+    redox     pe
+    units     mol/kgw
+    density   1
+    Br      0.0
+    -water    1 # kg
+
+EQUILIBRIUM_PHASES 0
+Calcite  0  10
+Dolomite-dis  0  10
+CO2(g)  -2.3  10
+
+REACTION 0
+    Gypsum     1
+    Halite     1
+    Sylvite    0.1
+    0.005 moles in 1 steps
+
+SAVE Solution 0
+SAVE EQUILIBRIUM_PHASES 0
+
+END
+
+USE Solution 0
+EXCHANGE 0
+    X       0.90
+    -equilibrate with solution 0
+    -pitzer_exchange_gammas true
+SAVE EXCHANGE 0
+END
+
+USE Solution 0
+EXCHANGE 1
+    X       0.80
+    -equilibrate with solution 0
+    -pitzer_exchange_gammas true
+SAVE EXCHANGE 1
+END
+
+USE Solution 0
+EXCHANGE 2
+    X       0.70
+    -equilibrate with solution 0
+    -pitzer_exchange_gammas true
+SAVE EXCHANGE 2
+END
+
+USE Solution 0
+EXCHANGE 3
+    X       0.60
+    -equilibrate with solution 0
+    -pitzer_exchange_gammas true
+SAVE EXCHANGE 3
+END
+
+USE Solution 0
+EXCHANGE 4
+    X       0.50
+    -equilibrate with solution 0
+    -pitzer_exchange_gammas true
+SAVE EXCHANGE 4
+END
+
+USE Solution 0
+EXCHANGE 5
+    X       0.40
+    -equilibrate with solution 0
+    -pitzer_exchange_gammas true
+SAVE EXCHANGE 5
+END
+
+USE Solution 0
+EXCHANGE 6
+    X       0.3
+    -equilibrate with solution 0
+    -pitzer_exchange_gammas true
+SAVE EXCHANGE 6
+END
+
+USE Solution 0
+EXCHANGE 7
+    X       0.2
+    -equilibrate with solution 0
+    -pitzer_exchange_gammas true
+SAVE EXCHANGE 7
+END
+
+USE Solution 0
+EXCHANGE 8
+    X       0.1
+    -equilibrate with solution 0
+    -pitzer_exchange_gammas true
+SAVE EXCHANGE 8
+END
+
+USE Solution 0
+EXCHANGE 9
+    X       0.001
+    -equilibrate with solution 0
+    -pitzer_exchange_gammas true
+SAVE EXCHANGE 9
+END
+
+
+SOLUTION 1 		# inflowing water composition from exterior sources
+    temp      25
+    pH        7
+    pe        4
+    redox     pe
+    units     mol/kgw
+    density   1
+	Br        1e-06
+    -water    1 # kg
+
+EQUILIBRIUM_PHASES 1
+Calcite  0  10
+Dolomite-dis  0  10
+CO2(g)  -2.3  10
+
+REACTION 1
+    Gypsum     0.1
+    Halite     0.1
+    Sylvite    0.01
+    0.005 moles in 1 steps
+
+SAVE Solution 1
+
+
+SELECTED_OUTPUT 1
+    -file                 selected_output_1.txt
+    -reset                false
+    -pH                   true
+    -totals               Ca  Mg  Na  K  Br
+    -equilibrium_phases   Calcite Dolomite-dis
+
+END
